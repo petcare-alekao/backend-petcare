@@ -105,3 +105,24 @@ steps:
   - script: docker compose down -v
     displayName: 'Derrubar containers'
     condition: always()
+
+  # 8. Gerar o JAR da aplicacao
+  - script: ./mvnw package -DskipTests --no-transfer-progress
+    displayName: 'Gerar JAR'
+    env:
+      SPRING_PROFILES_ACTIVE: $(SPRING_PROFILES_ACTIVE)
+      DB_URL: $(DB_URL)
+      DB_USERNAME: $(DB_USERNAME)
+      DB_PASSWORD: $(DB_PASSWORD)
+      DB_DRIVER_CLASS_NAME: $(DB_DRIVER_CLASS_NAME)
+      JWT_SECRET: $(JWT_SECRET)
+
+  # 9. Deploy no Azure App Service
+  - task: AzureWebApp@1
+    displayName: 'Deploy no Azure App Service'
+    inputs:
+      azureSubscription: 'azure-petcare-connection'
+      appType: 'webAppLinux'
+      appName: 'petcare-backend-rm560512'
+      package: 'target/*.jar'
+      runtimeStack: 'JAVA|21-java21'
