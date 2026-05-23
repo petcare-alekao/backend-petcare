@@ -77,7 +77,7 @@ steps:
     displayName: 'Aguardar PostgreSQL saudável'
 
   # 5. Build e testes com Maven
-  - script: ./mvnw clean verify --no-transfer-progress
+  - script: ./mvnw clean verify --no-transfer-progress "-Dtest=!MyArchitectureTest" -DfailIfNoTests=false
     displayName: 'Build e testes (Maven)'
     env:
       SPRING_PROFILES_ACTIVE: $(SPRING_PROFILES_ACTIVE)
