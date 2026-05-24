@@ -28,9 +28,6 @@ public class PetController {
 
     @GetMapping("/{id}")
     public ResponseEntity<PetResponseDto> findById(@PathVariable UUID id) {
-        if (petUseCases.findById(id) == null) {
-            return ResponseEntity.notFound().build();
-        }
         PetResponseDto response = petUseCases.findById(id);
         return ResponseEntity.ok(response);
     }

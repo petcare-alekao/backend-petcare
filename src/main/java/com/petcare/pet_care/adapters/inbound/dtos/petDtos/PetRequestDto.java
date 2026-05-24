@@ -4,6 +4,7 @@ package com.petcare.pet_care.adapters.inbound.dtos.petDtos;
 import com.petcare.pet_care.domain.enums.Sex;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,6 +27,7 @@ public class PetRequestDto {
     private String race;
 
     @NotNull(message = "Data de nascimento é obrigatória")
+    @Past(message = "Data de nascimento deve ser no passado")
     private LocalDate birthDate;
 
     private Double weight;

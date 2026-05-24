@@ -30,25 +30,25 @@ public class VeterinarianController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{crmv}")
+    @GetMapping("/crmv/{crmv}")
     public ResponseEntity<VeterinarianResponseDto> findByCrmv(@PathVariable String crmv) {
         VeterinarianResponseDto response = veterinarianUseCases.findByCrmv(crmv);
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{email}")
+    @GetMapping("/email/{email}")
     public ResponseEntity<VeterinarianResponseDto> findByEmail(@PathVariable String email) {
         VeterinarianResponseDto response = veterinarianUseCases.findByEmail(email);
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{specialty}")
-    public ResponseEntity<List<VeterinarianResponseDto>> findBySpecialty(@RequestParam String specialty) {
+    @GetMapping("/specialty/{specialty}")
+    public ResponseEntity<List<VeterinarianResponseDto>> findBySpecialty(@PathVariable String specialty) {
         List<VeterinarianResponseDto> response = veterinarianUseCases.findBySpecialty(specialty);
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{name}")
+    @GetMapping("/name/{name}")
     public ResponseEntity<List<VeterinarianResponseDto>> findByName(@PathVariable String name) {
         List<VeterinarianResponseDto> response = veterinarianUseCases.findByName(name);
         return ResponseEntity.ok(response);

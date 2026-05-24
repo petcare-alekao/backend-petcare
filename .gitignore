@@ -34,3 +34,6 @@ build/
 
 ### sensibilites variables
 .env
+
+
+.DS_Store
