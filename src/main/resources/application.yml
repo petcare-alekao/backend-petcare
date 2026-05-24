@@ -1,6 +1,7 @@
 spring:
   rabbitmq:
-    virtual-host: PetCareMQ
+    host: ${RABBITMQ_HOST:localhost}
+    virtual-host: ${RABBITMQ_VHOST:PetCareMQ}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
     port: 5672
