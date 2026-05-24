@@ -15,7 +15,7 @@ variables:
   DB_USERNAME: petcare
   DB_PASSWORD: petcare
   DB_DRIVER_CLASS_NAME: org.postgresql.Driver
-  JWT_EXPIRATION_MINUTES: 60
+  JWT_EXPIRATION_MINUTES: "60"
   POSTGRES_DB: petcare
   POSTGRES_USER: petcare
   POSTGRES_PASSWORD: petcare
