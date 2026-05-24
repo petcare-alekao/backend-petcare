@@ -26,6 +26,7 @@ variables:
   RABBITMQ_HOST: localhost
   RABBITMQ_USERNAME: admin
   RABBITMQ_PASSWORD: admin
+  RABBITMQ_VHOST: PetCareMQ
   AWS_REGION: us-east-1
   AWS_ACCESS_KEY_ID: dummy
   AWS_SECRET_ACCESS_KEY: dummy
@@ -62,15 +63,16 @@ steps:
       AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY)
       RABBITMQ_USERNAME=$(RABBITMQ_USERNAME)
       RABBITMQ_PASSWORD=$(RABBITMQ_PASSWORD)
+      RABBITMQ_VHOST=$(RABBITMQ_VHOST)
       SES_FROM_EMAIL=$(SES_FROM_EMAIL)
       EOF
     displayName: 'Criar arquivo .env'
 
-  # 3. Sobe apenas postgres e rabbitmq (necessários para os testes)
+  # 3. Sobe apenas postgres e rabbitmq (necessarios para os testes)
   - script: docker compose up -d postgres rabbitmq
     displayName: 'Subir PostgreSQL e RabbitMQ'
 
-  # 4. Aguarda o PostgreSQL ficar saudável
+  # 4. Aguarda o PostgreSQL ficar saudavel
   - script: |
       echo "Aguardando PostgreSQL..."
       for i in $(seq 1 30); do
@@ -78,9 +80,19 @@ steps:
         echo "Tentativa $i/30..."
         sleep 3
       done
-    displayName: 'Aguardar PostgreSQL saudável'
+    displayName: 'Aguardar PostgreSQL saudavel'
 
-  # 5. Build e testes com Maven
+  # 5. Aguarda o RabbitMQ ficar saudavel
+  - script: |
+      echo "Aguardando RabbitMQ..."
+      for i in $(seq 1 30); do
+        docker compose exec -T rabbitmq rabbitmq-diagnostics -q ping && break
+        echo "Tentativa $i/30..."
+        sleep 3
+      done
+    displayName: 'Aguardar RabbitMQ saudavel'
+
+  # 6. Build e testes com Maven
   - script: ./mvnw clean verify --no-transfer-progress "-Dtest=!MyArchitectureTest" -DfailIfNoTests=false
     displayName: 'Build e testes (Maven)'
     env:
@@ -94,12 +106,13 @@ steps:
       RABBITMQ_HOST: $(RABBITMQ_HOST)
       RABBITMQ_USERNAME: $(RABBITMQ_USERNAME)
       RABBITMQ_PASSWORD: $(RABBITMQ_PASSWORD)
+      RABBITMQ_VHOST: $(RABBITMQ_VHOST)
       AWS_REGION: $(AWS_REGION)
       AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
       AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
       SES_FROM_EMAIL: $(SES_FROM_EMAIL)
 
-  # 6. Publica resultados dos testes
+  # 7. Publica resultados dos testes
   - task: PublishTestResults@2
     displayName: 'Publicar resultados dos testes'
     condition: always()
@@ -107,12 +120,12 @@ steps:
       testResultsFormat: 'JUnit'
       testResultsFiles: '**/surefire-reports/TEST-*.xml'
 
-  # 7. Derruba os containers
+  # 8. Derruba os containers
   - script: docker compose down -v
     displayName: 'Derrubar containers'
     condition: always()
 
-  # 8. Gerar o JAR da aplicacao
+  # 9. Gerar o JAR da aplicacao
   - script: ./mvnw package -DskipTests --no-transfer-progress
     displayName: 'Gerar JAR'
     env:
@@ -122,8 +135,17 @@ steps:
       DB_PASSWORD: $(DB_PASSWORD)
       DB_DRIVER_CLASS_NAME: $(DB_DRIVER_CLASS_NAME)
       JWT_SECRET: $(JWT_SECRET)
+      JWT_EXPIRATION_MINUTES: $(JWT_EXPIRATION_MINUTES)
+      RABBITMQ_HOST: $(RABBITMQ_HOST)
+      RABBITMQ_USERNAME: $(RABBITMQ_USERNAME)
+      RABBITMQ_PASSWORD: $(RABBITMQ_PASSWORD)
+      RABBITMQ_VHOST: $(RABBITMQ_VHOST)
+      AWS_REGION: $(AWS_REGION)
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+      SES_FROM_EMAIL: $(SES_FROM_EMAIL)
 
-  # 9. Deploy no Azure App Service
+  # 10. Deploy no Azure App Service
   - task: AzureWebApp@1
     displayName: 'Deploy no Azure App Service'
     inputs:
@@ -132,3 +154,19 @@ steps:
       appName: 'petcare-backend-rm560512'
       package: 'target/*.jar'
       runtimeStack: 'JAVA|21-java21'
+      appSettings: >
+        -SPRING_PROFILES_ACTIVE $(SPRING_PROFILES_ACTIVE)
+        -DB_URL $(DB_URL)
+        -DB_USERNAME $(DB_USERNAME)
+        -DB_PASSWORD $(DB_PASSWORD)
+        -DB_DRIVER_CLASS_NAME $(DB_DRIVER_CLASS_NAME)
+        -JWT_SECRET $(JWT_SECRET)
+        -JWT_EXPIRATION_MINUTES $(JWT_EXPIRATION_MINUTES)
+        -RABBITMQ_HOST $(RABBITMQ_HOST)
+        -RABBITMQ_USERNAME $(RABBITMQ_USERNAME)
+        -RABBITMQ_PASSWORD $(RABBITMQ_PASSWORD)
+        -RABBITMQ_VHOST $(RABBITMQ_VHOST)
+        -AWS_REGION $(AWS_REGION)
+        -AWS_ACCESS_KEY_ID $(AWS_ACCESS_KEY_ID)
+        -AWS_SECRET_ACCESS_KEY $(AWS_SECRET_ACCESS_KEY)
+        -SES_FROM_EMAIL $(SES_FROM_EMAIL)
