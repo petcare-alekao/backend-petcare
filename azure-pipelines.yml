@@ -1,0 +1,128 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  SPRING_PROFILES_ACTIVE: dev
+  DB_URL: jdbc:postgresql://localhost:5432/petcare
+  DB_USERNAME: petcare
+  DB_PASSWORD: petcare
+  DB_DRIVER_CLASS_NAME: org.postgresql.Driver
+  JWT_EXPIRATION_MINUTES: 60
+  POSTGRES_DB: petcare
+  POSTGRES_USER: petcare
+  POSTGRES_PASSWORD: petcare
+  POSTGRES_PORT: 5432
+  PGADMIN_DEFAULT_EMAIL: admin@petcare.com
+  PGADMIN_DEFAULT_PASSWORD: admin
+  PGADMIN_PORT: 5050
+  RABBITMQ_HOST: localhost
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: dummy
+  AWS_SECRET_ACCESS_KEY: dummy
+  SES_FROM_EMAIL: no-reply@petcare.com
+
+steps:
+  # 1. Configura Java 21
+  - task: JavaToolInstaller@0
+    displayName: 'Instalar Java 21'
+    inputs:
+      versionSpec: '21'
+      jdkArchitectureOption: 'x64'
+      jdkSourceOption: 'PreInstalled'
+
+  # 2. Cria o arquivo .env para o Docker Compose
+  - script: |
+      cat > .env << EOF
+      SPRING_PROFILES_ACTIVE=$(SPRING_PROFILES_ACTIVE)
+      DB_URL=$(DB_URL)
+      DB_USERNAME=$(DB_USERNAME)
+      DB_PASSWORD=$(DB_PASSWORD)
+      DB_DRIVER_CLASS_NAME=$(DB_DRIVER_CLASS_NAME)
+      JWT_SECRET=$(JWT_SECRET)
+      JWT_EXPIRATION_MINUTES=$(JWT_EXPIRATION_MINUTES)
+      POSTGRES_DB=$(POSTGRES_DB)
+      POSTGRES_USER=$(POSTGRES_USER)
+      POSTGRES_PASSWORD=$(POSTGRES_PASSWORD)
+      POSTGRES_PORT=$(POSTGRES_PORT)
+      PGADMIN_DEFAULT_EMAIL=$(PGADMIN_DEFAULT_EMAIL)
+      PGADMIN_DEFAULT_PASSWORD=$(PGADMIN_DEFAULT_PASSWORD)
+      PGADMIN_PORT=$(PGADMIN_PORT)
+      AWS_REGION=$(AWS_REGION)
+      AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY)
+      SES_FROM_EMAIL=$(SES_FROM_EMAIL)
+      EOF
+    displayName: 'Criar arquivo .env'
+
+  # 3. Sobe apenas postgres e rabbitmq (necessários para os testes)
+  - script: docker compose up -d postgres rabbitmq
+    displayName: 'Subir PostgreSQL e RabbitMQ'
+
+  # 4. Aguarda o PostgreSQL ficar saudável
+  - script: |
+      echo "Aguardando PostgreSQL..."
+      for i in $(seq 1 30); do
+        docker compose exec -T postgres pg_isready -U petcare -d petcare && break
+        echo "Tentativa $i/30..."
+        sleep 3
+      done
+    displayName: 'Aguardar PostgreSQL saudável'
+
+  # 5. Build e testes com Maven
+  - script: ./mvnw clean verify --no-transfer-progress "-Dtest=!MyArchitectureTest" -DfailIfNoTests=false
+    displayName: 'Build e testes (Maven)'
+    env:
+      SPRING_PROFILES_ACTIVE: $(SPRING_PROFILES_ACTIVE)
+      DB_URL: $(DB_URL)
+      DB_USERNAME: $(DB_USERNAME)
+      DB_PASSWORD: $(DB_PASSWORD)
+      DB_DRIVER_CLASS_NAME: $(DB_DRIVER_CLASS_NAME)
+      JWT_SECRET: $(JWT_SECRET)
+      JWT_EXPIRATION_MINUTES: $(JWT_EXPIRATION_MINUTES)
+      RABBITMQ_HOST: $(RABBITMQ_HOST)
+      AWS_REGION: $(AWS_REGION)
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+      SES_FROM_EMAIL: $(SES_FROM_EMAIL)
+
+  # 6. Publica resultados dos testes
+  - task: PublishTestResults@2
+    displayName: 'Publicar resultados dos testes'
+    condition: always()
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: '**/surefire-reports/TEST-*.xml'
+
+  # 7. Derruba os containers
+  - script: docker compose down -v
+    displayName: 'Derrubar containers'
+    condition: always()
+
+  # 8. Gerar o JAR da aplicacao
+  - script: ./mvnw package -DskipTests --no-transfer-progress
+    displayName: 'Gerar JAR'
+    env:
+      SPRING_PROFILES_ACTIVE: $(SPRING_PROFILES_ACTIVE)
+      DB_URL: $(DB_URL)
+      DB_USERNAME: $(DB_USERNAME)
+      DB_PASSWORD: $(DB_PASSWORD)
+      DB_DRIVER_CLASS_NAME: $(DB_DRIVER_CLASS_NAME)
+      JWT_SECRET: $(JWT_SECRET)
+
+  # 9. Deploy no Azure App Service
+  - task: AzureWebApp@1
+    displayName: 'Deploy no Azure App Service'
+    inputs:
+      azureSubscription: 'azure-petcare-connection'
+      appType: 'webAppLinux'
+      appName: 'petcare-backend-rm560512'
+      package: 'target/*.jar'
+      runtimeStack: 'JAVA|21-java21'
